@@ -74,8 +74,8 @@ end_frame = 1
 step_format = "%04d"
 ground_plane_pos = 0
 
-
-sim_folder = "C:/Users/fang/Documents/Rassor/results/Test_0_alpha_0.02/"
+sim_folder="/srv/home/fang/RASSOR/my-fork/build/bin/DEMO_OUTPUT/Test_0_alpha_0.02/"
+#sim_folder = "C:/Users/fang/Documents/Rassor/results/Test_0_alpha_0.02/"
 particle_dir = sim_folder + "particles/"
 mesh_dir     = sim_folder + "rover/"
 out_dir   = sim_folder + "images/"
