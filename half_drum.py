@@ -65,7 +65,85 @@ def get_chassis_right_center(positions_drum):
 
     return vehicle_center_x, vehicle_y_min, vehicle_center_z
 
-unit_conv = 1.
+
+# read particle files and create both soil and drum particles
+def read_particle_file_half_drum(particle_dir):
+    in_particle_file = particle_dir + "BCE_Rigid" + str(k) + ".csv"
+    print("read drum file: " + in_particle_file)
+    line_count = 0
+    count = 0
+
+    positions_drum = []
+    positions_soil = []
+    # in_particle_file has x, y, z compoenents, find the minimum of y
+    y_min = 1000
+
+    with open(in_particle_file) as f:
+        for line in f:
+            #if count > 9000000: break
+            if line_count == 0:
+                line_count += 1
+                continue
+            else:
+                line_count += 1
+                # you have to parse "x", "y", "z" and "r" from the variable "line"
+                line_seg = line.split(",")
+                #print(line_seg)
+                y = float(line_seg[1])
+
+                if y < y_min:
+                    y_min = y
+
+        print("y_min: " + str(y_min))
+        f.seek(0)
+        line_count = 0
+        count = 0
+        for line in f:
+            #if count > 9000000: break
+            if line_count == 0:
+                line_count += 1
+                continue
+            else:
+                line_count += 1
+                # you have to parse "x", "y", "z" and "r" from the variable "line"
+                line_seg = line.split(",")
+                #print(line_seg)
+                x, y, z = float(line_seg[0]), float(line_seg[1]), float(line_seg[2])
+
+                if y > y_min + 0.02:
+                    positions_drum.append((x,y,z))
+                    count = count + 1
+    print("total number of drum particles " + str(count))
+
+    # read fluid particles, ignore everything with y coordinates larger than 0.045 
+    in_particle_file = particle_dir + "fluid" + str(k) + ".csv"
+    print("read particle file: " + in_particle_file)
+    line_count = 0
+    count = 0
+    with open(in_particle_file) as f:
+        for line in f:
+            #if count > 9000000: break
+            if line_count == 0:
+                line_count += 1
+                continue
+            else:
+                line_count += 1
+                # you have to parse "x", "y", "z" and "r" from the variable "line"
+                line_seg = line.split(",")
+                #print(line_seg)
+                x, y, z =  float(line_seg[0]), float(line_seg[1]), float(line_seg[2])
+
+                # do not count fluid particles outside the drum
+                if abs(y) > 0.65:
+                    continue
+                
+                positions_soil.append((x,y,z))
+                count = count + 1
+    print("total number of fluid particles " + str(count))
+
+
+    return positions_drum, positions_soil
+
 #radius_particle = 0.5
 start_frame = 0
 # end_frame = 10
@@ -74,13 +152,17 @@ end_frame = 1
 step_format = "%04d"
 ground_plane_pos = 0
 
-sim_folder="/srv/home/fang/RASSOR/my-fork/build/bin/DEMO_OUTPUT/Test_0_alpha_0.02/"
-#sim_folder = "C:/Users/fang/Documents/Rassor/results/Test_0_alpha_0.02/"
+# sim_folder="/srv/home/fang/RASSOR/my-fork/build/bin/DEMO_OUTPUT/Test_0_alpha_0.02/"
+
+sim_folder = "C:/Users/fang/Documents/Rassor/build/bin/Release/DEMO_OUTPUT/jason/"
 particle_dir = sim_folder + "particles/"
 mesh_dir     = sim_folder + "rover/"
 out_dir   = sim_folder + "images/"
 
-my_start_frame = 20
+# list of obj names
+obj_names = ["chassis", "arm_B", "arm_F", "Wheel_LF", "Wheel_RF", "Wheel_LB", "Wheel_RB", "razor_F", "razor_B"]
+
+my_start_frame = 60
 my_end_frame = 80
 
 particle_radius = 0.002
@@ -89,6 +171,8 @@ particle_radius = 0.002
 if len(sys.argv) > 1:
     my_start_frame = int(sys.argv[4]) * 10
     my_end_frame = my_start_frame + 10
+    my_start_frame = int(sys.argv[4])
+    my_end_frame = my_start_frame + 20
 
 
 
@@ -98,82 +182,7 @@ os.makedirs(out_dir, exist_ok=True)
 for k in range(my_start_frame, my_end_frame, 1):
     try:
         
-        positions_soil = []
-        # positions and radius for drum geometry
-        positions_drum = []
-
-
-
-        in_particle_file = particle_dir + "BCE_Rigid" + str(k) + ".csv"
-        print("read drum file: " + in_particle_file)
-        line_count = 0
-        count = 0
-
-        # in_particle_file has x, y, z compoenents, find the minimum of y
-        y_min = 1000
-
-        with open(in_particle_file) as f:
-            for line in f:
-                #if count > 9000000: break
-                if line_count == 0:
-                    line_count += 1
-                    continue
-                else:
-                    line_count += 1
-                    # you have to parse "x", "y", "z" and "r" from the variable "line"
-                    line_seg = line.split(",")
-                    #print(line_seg)
-                    y = unit_conv * float(line_seg[1])
-
-                    if y < y_min:
-                        y_min = y
-
-            print("y_min: " + str(y_min))
-            f.seek(0)
-            line_count = 0
-            count = 0
-            for line in f:
-                #if count > 9000000: break
-                if line_count == 0:
-                    line_count += 1
-                    continue
-                else:
-                    line_count += 1
-                    # you have to parse "x", "y", "z" and "r" from the variable "line"
-                    line_seg = line.split(",")
-                    #print(line_seg)
-                    x, y, z = unit_conv * float(line_seg[0]), unit_conv * float(line_seg[1]), unit_conv * float(line_seg[2])
-
-                    if y > y_min + 0.02:
-                        positions_drum.append((x,y,z))
-                        count = count + 1
-        print("total number of drum particles " + str(count))
-
-        # read fluid particles, ignore everything with y coordinates larger than 0.045 
-        in_particle_file = particle_dir + "fluid" + str(k) + ".csv"
-        print("read particle file: " + in_particle_file)
-        line_count = 0
-        count = 0
-        with open(in_particle_file) as f:
-            for line in f:
-                #if count > 9000000: break
-                if line_count == 0:
-                    line_count += 1
-                    continue
-                else:
-                    line_count += 1
-                    # you have to parse "x", "y", "z" and "r" from the variable "line"
-                    line_seg = line.split(",")
-                    #print(line_seg)
-                    x, y, z = unit_conv * float(line_seg[0]), unit_conv * float(line_seg[1]), unit_conv * float(line_seg[2])
-
-                    # do not count fluid particles outside the drum
-                    if abs(y) > abs(y_min):
-                        continue
-                    
-                    positions_soil.append((x,y,z))
-                    count = count + 1
-        print("total number of fluid particles " + str(count))
+        positions_drum, positions_soil = read_particle_file_half_drum(particle_dir)
 
 
         vehicle_center_x, vehicle_y_min, vehicle_center_z = get_chassis_right_center(positions_drum)
@@ -183,8 +192,8 @@ for k in range(my_start_frame, my_end_frame, 1):
         scene = bpy.context.scene
         scene.objects.keys()
 
-        bpy.ops.mesh.primitive_plane_add(size=20.0 * unit_conv, calc_uvs=True, enter_editmode=False, align='WORLD',
-                                         location=(0.0, 0.0, ground_plane_pos * unit_conv))
+        bpy.ops.mesh.primitive_plane_add(size=20.0, calc_uvs=True, enter_editmode=False, align='WORLD',
+                                         location=(0.0, 0.0, ground_plane_pos))
 
         ov=bpy.context.copy()
         ov['area']=[a for a in bpy.context.screen.areas if a.type=="VIEW_3D"][0]
@@ -195,11 +204,14 @@ for k in range(my_start_frame, my_end_frame, 1):
         context = bpy.context
         # Create the blue material
         material_drum = bpy.data.materials.new(name="BlueMaterial")
-        material_drum.diffuse_color = (0.2, 0.2, 0.6, 1)  # Blue color
+        # material_drum.diffuse_color = (0.2, 0.2, 0.6, 1)  # purple color
+        # material_drum.diffuse_color = (0.1, 0.1, 0.1, 0.1)  # dark grey
+        material_drum.diffuse_color = (0.3, 0, 0, 1)  # dark red
 
         # Create the gray material
         material_soil = bpy.data.materials.new(name="GrayMaterial")
-        material_soil.diffuse_color = (0.4, 0.4, 0.4, 0.1)  # Gray color
+        # material_soil.diffuse_color = (0.4, 0.4, 0.4, 0.1)  # light Gray color
+        material_soil.diffuse_color = (0.1, 0.1, 0.1, 0.1)  # Gray color
 
         # Create the blue icosphere and set the blue material
         bpy.ops.mesh.primitive_ico_sphere_add(radius=1, location=(50, 50, 50))
@@ -269,6 +281,36 @@ for k in range(my_start_frame, my_end_frame, 1):
 
         # Trigger frame update
         bpy.context.scene.frame_current = 2
+
+        """"Add obj mesh to the scene"""
+
+        # # Read the OBJ file and import the mesh
+        for obj_name in obj_names:
+
+            in_mesh_file = mesh_dir + obj_name + "_" + str(k) + ".obj"
+            print("Reading OBJ file: " + in_mesh_file)
+            imported_object_0 = bpy.ops.import_scene.obj(filepath=in_mesh_file)
+
+            # Access the imported mesh object
+            mesh_object = bpy.context.selected_objects[0]
+
+            # Set the material to be transparent
+            if mesh_object.material_slots:
+                material = mesh_object.material_slots[0].material
+                material.use_nodes = True
+                material.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 1.0  # Adjust alpha value as needed
+
+                if obj_name.startswith("razor"):
+                    material.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.05
+                
+                if obj_name.startswith("chassis") or obj_name.startswith("arm") or obj_name.startswith("Wheel"):
+                    material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.1, 0.1, 0.1, 1)
+
+            ov = bpy.context.copy()
+            ov['area'] = [a for a in bpy.context.screen.areas if a.type == "VIEW_3D"][0]
+            bpy.ops.transform.rotate(ov, value=(math.pi * 0.5), orient_axis='X')
+
+
         """ -----------PARTICLE SYSTEM TEST END-------------------------------------------- """
 
         bpy.context.view_layer.update()
@@ -282,7 +324,7 @@ for k in range(my_start_frame, my_end_frame, 1):
 
         # Set up rotational camera
         cam = bpy.data.objects["Camera"]
-        cam.location = (vehicle_center_x, -3.5*unit_conv, vehicle_center_z)
+        cam.location = (vehicle_center_x + 0.25, -3, vehicle_center_z + 0.25)
         point_at(cam,  (vehicle_center_x, vehicle_y_min, vehicle_center_z), roll=math.radians(0))
 
 
@@ -311,7 +353,7 @@ for k in range(my_start_frame, my_end_frame, 1):
 
         # create light datablock, set attributes
         light_data = bpy.data.lights.new(name="light_2.80", type='POINT')
-        light_data.energy = 100000*unit_conv**2
+        light_data.energy = 100000
 
         # create new object with our light datablock
         light_object = bpy.data.objects.new(name="light_2.80", object_data=light_data)
@@ -320,19 +362,35 @@ for k in range(my_start_frame, my_end_frame, 1):
         bpy.context.collection.objects.link(light_object)
 
         # clip_end setting, make it large enough
-        bpy.context.scene.camera.data.clip_end = 10*unit_conv
+        bpy.context.scene.camera.data.clip_end = 10
 
         # make it active
         bpy.context.view_layer.objects.active = light_object
 
         # change location
-        light_object.location = (0., -10.*unit_conv, 50.*unit_conv)
+        light_object.location = (0., -10., 50.)
+
+        # Create a second light data block
+        second_light_data = bpy.data.lights.new(name="second_light", type='POINT')
+        second_light_data.energy = 100000  # Adjust energy as needed
+
+        # Create a new object with the second light data block
+        second_light_object = bpy.data.objects.new(name="second_light", object_data=second_light_data)
+
+        # Link the second light object to the scene
+        bpy.context.collection.objects.link(second_light_object)
+
+        # Change the location of the second light to balance the shadows
+        second_light_object.location = (10., 10., 50.)  # Adjust location as needed
+
+
+
 
         bpy.context.scene.render.engine = 'CYCLES'
         bpy.context.scene.cycles.device = 'GPU'
         #bpy.context.scene.render.resolution_percentage = 200
         # bpy.context.scene.cycles.samples = 512
-        bpy.context.scene.cycles.samples = 100
+        bpy.context.scene.cycles.samples = 200
 
         bpy.context.scene.render.resolution_x = 1080
         bpy.context.scene.render.resolution_y = 960
