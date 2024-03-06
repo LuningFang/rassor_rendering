@@ -5,6 +5,25 @@ import os
 import sys
 import mathutils
 
+
+
+# define different camera settings, this will be used to create different camera location, pointed at different location, and write different image name 
+# there will be two types of camera settings, one is for the side view of the vehicle, the other is for the focused view close to the wheel and drum 
+# the side view is for the whole vehicle, the focused view is for the drum and the wheel
+camera_settings = {
+    "side_view": {
+        "location": (0.25, -3, 0.25),
+        "point_at": (0, 0, 0),
+        "file_name": "side_view"
+    },
+    "focused_view": {
+        "location": (-0.1, -0.1,  0.5 ),
+        "point_at": ( 0.5,  0.1, -0.25),
+        "file_name": "focused_view"
+    }
+}
+
+
 #============ find the position that the camera points at
 def point_at(obj, target, roll=0):
     """
@@ -152,31 +171,27 @@ end_frame = 1
 step_format = "%04d"
 ground_plane_pos = 0
 
-# sim_folder="/srv/home/fang/RASSOR/my-fork/build/bin/DEMO_OUTPUT/Test_0_alpha_0.02/"
-
-sim_folder = "C:/Users/fang/Documents/Rassor/build/bin/Release/DEMO_OUTPUT/jason/"
-particle_dir = sim_folder + "particles/"
-mesh_dir     = sim_folder + "rover/"
-out_dir   = sim_folder + "images/"
 
 # list of obj names
 obj_names = ["chassis", "arm_B", "arm_F", "Wheel_LF", "Wheel_RF", "Wheel_LB", "Wheel_RB", "razor_F", "razor_B"]
 
-my_start_frame = 60
-my_end_frame = 80
+my_start_frame = 0
+my_end_frame = 100
 
 particle_radius = 0.002
 
-# if use command line input, the input is the my_start_frame
-if len(sys.argv) > 1:
-    my_start_frame = int(sys.argv[4]) * 10
-    my_end_frame = my_start_frame + 10
-    my_start_frame = int(sys.argv[4])
-    my_end_frame = my_start_frame + 20
-
-
+# sim_folder="/srv/home/fang/RASSOR/my-fork/build/bin/DEMO_OUTPUT/" + sys.argv[4] + "/"
+sim_folder = "C:/Users/fang/Documents/Rassor/build/bin/Release/DEMO_OUTPUT/" + sys.argv[4] + "/" 
+particle_dir = sim_folder + "particles/"
+mesh_dir     = sim_folder + "rover/"
+out_dir   = sim_folder + "images/"
 
 os.makedirs(out_dir, exist_ok=True)
+
+# command line input for camera view type
+CAMERA_VIEW = sys.argv[5]
+print("camera view: " + CAMERA_VIEW)
+
 # for k in a range start and end with interval of 10 
 
 for k in range(my_start_frame, my_end_frame, 1):
@@ -277,7 +292,7 @@ for k in range(my_start_frame, my_end_frame, 1):
 
         # Register our particleSetter with the post frame handler
         bpy.app.handlers.frame_change_post.append(particle_handler_soil)
-        bpy.app.handlers.frame_change_post.append(particle_handler_drum)
+        # bpy.app.handlers.frame_change_post.append(particle_handler_drum)
 
         # Trigger frame update
         bpy.context.scene.frame_current = 2
@@ -301,10 +316,11 @@ for k in range(my_start_frame, my_end_frame, 1):
                 material.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 1.0  # Adjust alpha value as needed
 
                 if obj_name.startswith("razor"):
-                    material.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.05
+                    material.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.2
+                    material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.2, 0.2, 0.6, 1)
                 
                 if obj_name.startswith("chassis") or obj_name.startswith("arm") or obj_name.startswith("Wheel"):
-                    material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.1, 0.1, 0.1, 1)
+                    material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.2, 0.2, 0.6, 1)
 
             ov = bpy.context.copy()
             ov['area'] = [a for a in bpy.context.screen.areas if a.type == "VIEW_3D"][0]
@@ -315,17 +331,22 @@ for k in range(my_start_frame, my_end_frame, 1):
 
         bpy.context.view_layer.update()
 
-        # make camera position and angle incremeting depending on the frame
-        numFiles = 60
-        delta_cam_pos_x = 4./numFiles
-        delta_cam_angle = 1.26/numFiles
-
         bpy.ops.object.camera_add(enter_editmode=False, align='WORLD', rotation=(1.4, 0.0, 0.0), scale=(5.0, 5.0, 5.0))
 
         # Set up rotational camera
         cam = bpy.data.objects["Camera"]
-        cam.location = (vehicle_center_x + 0.25, -3, vehicle_center_z + 0.25)
-        point_at(cam,  (vehicle_center_x, vehicle_y_min, vehicle_center_z), roll=math.radians(0))
+        # side view of the vehicle
+        # cam.location = (vehicle_center_x + 0.25, -3, vehicle_center_z + 0.25)
+        # point_at(cam,  (vehicle_center_x, vehicle_y_min, vehicle_center_z), roll=math.radians(0))
+
+        cam_relative_loc = camera_settings[CAMERA_VIEW]["location"]
+        cam_point_at_loc = camera_settings[CAMERA_VIEW]["point_at"]
+        cam.location = (vehicle_center_x + cam_relative_loc[0], vehicle_y_min + cam_relative_loc[1], vehicle_center_z + cam_relative_loc[2])
+        point_at(cam,  (vehicle_center_x + cam_point_at_loc[0], vehicle_y_min + cam_point_at_loc[1], vehicle_center_z + cam_point_at_loc[2]), roll=math.radians(0))
+        
+        
+        # (vehicle_center_x - 0.1, vehicle_y_min - 0.1, vehicle_center_z + 0.5)
+        # point_at(cam,  (vehicle_center_x + 0.5, vehicle_y_min + 0.1, vehicle_center_z - 0.25), roll=math.radians(0))
 
 
         # bpy.ops.object.camera_add(enter_editmode=False, align='WORLD', location=(drum_center_x, -3.*unit_conv, 1.*unit_conv),
@@ -353,7 +374,7 @@ for k in range(my_start_frame, my_end_frame, 1):
 
         # create light datablock, set attributes
         light_data = bpy.data.lights.new(name="light_2.80", type='POINT')
-        light_data.energy = 100000
+        light_data.energy = 5000
 
         # create new object with our light datablock
         light_object = bpy.data.objects.new(name="light_2.80", object_data=light_data)
@@ -368,11 +389,11 @@ for k in range(my_start_frame, my_end_frame, 1):
         bpy.context.view_layer.objects.active = light_object
 
         # change location
-        light_object.location = (0., -10., 50.)
+        light_object.location = (vehicle_center_x, -5., 10.)
 
         # Create a second light data block
         second_light_data = bpy.data.lights.new(name="second_light", type='POINT')
-        second_light_data.energy = 100000  # Adjust energy as needed
+        second_light_data.energy = 5000  # Adjust energy as needed
 
         # Create a new object with the second light data block
         second_light_object = bpy.data.objects.new(name="second_light", object_data=second_light_data)
@@ -381,7 +402,7 @@ for k in range(my_start_frame, my_end_frame, 1):
         bpy.context.collection.objects.link(second_light_object)
 
         # Change the location of the second light to balance the shadows
-        second_light_object.location = (10., 10., 50.)  # Adjust location as needed
+        second_light_object.location = (vehicle_center_x, 5., 10.)  # Adjust location as needed
 
 
 
@@ -395,7 +416,7 @@ for k in range(my_start_frame, my_end_frame, 1):
         bpy.context.scene.render.resolution_x = 1080
         bpy.context.scene.render.resolution_y = 960
 
-        bpy.context.scene.render.filepath = out_dir + "half_drum" + step_format%k + ".png"
+        bpy.context.scene.render.filepath = out_dir + camera_settings[CAMERA_VIEW]["file_name"] + "_" +step_format%k + ".png"
         # bpy.context.scene.render.image_settings.compression = 50
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.image_settings.file_format = 'PNG'
